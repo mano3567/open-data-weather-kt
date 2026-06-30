@@ -1,0 +1,24 @@
+plugins {
+    id 'application'
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.shadow)
+}
+def appVersion = libs.versions.app.get()
+version = appVersion
+group = "sample.weatcher.cli"
+
+dependencies {
+    implementation(project(":service"))
+    implementation libs.kotlinx.coroutines.core
+    implementation libs.open.data.geolocation
+}
+
+application {
+    // Sökvägen till din main-funktion. 
+    // Om filen heter Main.kt blir klassnamnet MainKt (Gradle behöver detta för att kunna köra appen)
+    mainClass.set("sample.weather.cli.MainKt")
+}
+tasks.withType(JavaExec) {
+    standardInput = System.in
+}

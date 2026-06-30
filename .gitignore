@@ -3,6 +3,8 @@
 
 # Log file
 *.log
+.idea
+.gradle
 
 # BlueJ files
 *.ctxt
@@ -11,6 +13,9 @@
 .mtj.tmp/
 
 # Package Files #
+build
+out
+target
 *.jar
 *.war
 *.nar
