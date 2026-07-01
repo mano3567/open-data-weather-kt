@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":service"))
     implementation libs.kotlinx.coroutines.core
     implementation libs.open.data.geolocation
+    implementation libs.kotlinx.serialization.json
 }
 
 application {

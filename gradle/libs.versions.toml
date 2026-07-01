@@ -7,7 +7,7 @@ kotlinx-serialization = "1.11.0"
 ktor = "3.5.1"
 shadow = "9.4.3"
 coroutines = "1.11.0"
-openDataGeoLocation = "1.0.6"
+openDataGeoLocation = "1.0.7"
 
 [libraries]
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }

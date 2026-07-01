@@ -7,7 +7,6 @@ import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -15,25 +14,22 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import java.time.Instant
 
-// Domänmodellen kan med fördel ligga utanför, men jag behåller din struktur!
-data class WeatherForecast(
+data class WeatherForecastBySmhi(
     val cloudCoverOctas: Int,
     val humidity: Double,
-    val isClearSky: Boolean,
     val precipitationMm: Double,
     val temperature: Double,
     val time: Instant,
     val windSpeed: Double,
-    val visibilityKm: Double,
+    val visibilityKm: Double
 )
 
 class SmhiService(private val userAgent: String) {
 
-    // 1. Initiera och konfigurera Ktor-klienten lokalt
-    private val client = HttpClient(CIO) {
+    private val httpClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
-                ignoreUnknownKeys = true // Ignorerar all extra SMHI-data vi inte vill ha
+                ignoreUnknownKeys = true
             })
         }
     }
@@ -47,28 +43,27 @@ class SmhiService(private val userAgent: String) {
 
     @Serializable
     private data class SmhiData(
-        val cloud_area_fraction: Double? = null,
         val air_temperature: Double? = null,
-        val wind_speed: Double? = null,
+        val cloud_area_fraction: Double? = null,
+        val precipitation_amount_mean: Double? = null,
         val relative_humidity: Double? = null,
         val visibility_in_air: Double? = null,
-        val precipitation_amount_mean: Double? = null
+        val wind_speed: Double? = null
     )
 
     // 2. Använd den lokala klienten
-    suspend fun getSmhiForecast(lat: Double, lon: Double): Result<List<WeatherForecast>> = runCatching {
-        val latStr = String.format(Locale.US, "%.5f", lat)
-        val lonStr = String.format(Locale.US, "%.5f", lon)
+    suspend fun getSmhiForecast(latitude: Double, longitude: Double): Result<List<WeatherForecastBySmhi>> = runCatching {
+        val latStr = String.format(Locale.US, "%.5f", latitude)
+        val lonStr = String.format(Locale.US, "%.5f", longitude)
 
         val url = "https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point/lon/$lonStr/lat/$latStr/data.json"
 
-        val smhiData: SmhiResponse = client.get(url) {
+        val smhiData: SmhiResponse = httpClient.get(url) {
             header(HttpHeaders.UserAgent, userAgent)
         }.body()
 
         val now = ZonedDateTime.now()
         val zoneId = ZoneId.of("UTC")
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
         smhiData.timeSeries
             .take(120)
@@ -79,10 +74,9 @@ class SmhiService(private val userAgent: String) {
                 val data = timeStep.data
                 val cloudCover = data.cloud_area_fraction.validSmhiValue(8.0).toInt()
 
-                WeatherForecast(
+                WeatherForecastBySmhi(
                     time = localTime.toInstant(),
                     cloudCoverOctas = cloudCover,
-                    isClearSky = cloudCover == 0,
                     temperature = data.air_temperature.validSmhiValue(),
                     windSpeed = data.wind_speed.validSmhiValue(),
                     humidity = data.relative_humidity.validSmhiValue(),
@@ -93,6 +87,6 @@ class SmhiService(private val userAgent: String) {
     }
 
     fun close() {
-        client.close()
+        httpClient.close()
     }
 }
