@@ -2,6 +2,8 @@ package sample.weather.cli
 
 import se.metricspace.opendata.geolocation.GeoLocationService
 import kotlinx.coroutines.runBlocking
+import se.metricspace.opendata.weather.FmiService
+import se.metricspace.opendata.weather.MetNorwayService
 import se.metricspace.opendata.weather.SmhiService
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -21,7 +23,9 @@ fun main() {
             println("User-Agent kan inte vara tom. Försök igen.")
         }
     }
+    val fmiService = FmiService(currentSettings.userAgent)
     val geoLocationService = GeoLocationService(userAgent = currentSettings.userAgent)
+    val metNorwayService = MetNorwayService(currentSettings.userAgent)
     val smhiService = SmhiService(currentSettings.userAgent)
 
     runBlocking {
@@ -46,9 +50,11 @@ fun main() {
             println("\n==================================")
             println(" Aktuell plats: ${currentLoc?.name ?: "Ingen vald"}")
             println("==================================")
-            println("1. Hämta väder för aktuell plats")
-            println("2. Välj befintlig plats")
-            println("3. Lägg till ny plats")
+            println("1. Hämta väder för aktuell plats (SMHI)")
+            println("2. Hämta väder för aktuell plats (Norge)")
+            println("3. Hämta väder för aktuell plats (Finland)")
+            println("4. Välj befintlig plats")
+            println("5. Lägg till ny plats")
             println("Q. Avsluta")
             print("Välj ett alternativ: ")
             when (readlnOrNull()?.trim()) {
@@ -58,7 +64,7 @@ fun main() {
                         val forecasts = smhiService.getSmhiForecast(currentLoc.latitude , currentLoc.longitude)
                         forecasts.onSuccess { forecastList ->
                             println("Väderprognos:")
-                            forecastList.take(6).forEach { forecast ->
+                            forecastList.take(8).forEach { forecast ->
                                 val zoneId = ZoneId.systemDefault()
                                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                                 val zonedDateTime = forecast.time.atZone(zoneId)
@@ -70,6 +76,41 @@ fun main() {
                     } ?: println("❌ Ingen plats vald!")
                 }
                 "2" -> {
+                    currentLoc?.let { location ->
+                        println("\n⏳ Hämtar väder för ${currentLoc.name} (${currentLoc.latitude}, ${currentLoc.longitude})...")
+                        val forecasts = metNorwayService.getForecast(currentLoc.latitude , currentLoc.longitude)
+                        forecasts.onSuccess { forecasts ->
+                            forecasts.take(8).forEach { forecast ->
+                                val zoneId = ZoneId.systemDefault()
+                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                val zonedDateTime = forecast.time.atZone(zoneId)
+                                println("${zonedDateTime.format(formatter)} | AirTemperature ${forecast.airTemperature} c | CloudAreaFraction ${forecast.cloudAreaFraction} % | RelativeHumidity ${forecast.relativeHumidity}  | WindSpeed ${forecast.windSpeed} m/s | precipitationAmount ${forecast.precipitationAmount} mm")
+                            }
+                        }.onFailure { error ->
+                            println("Kunde inte hämta väderprognos: ${error.message}")
+                        }
+                    } ?: println("❌ Ingen plats vald!")
+                }
+                "3" -> {
+                    currentLoc?.let { location ->
+                        println("\n⏳ Hämtar väder för ${currentLoc.name} (${currentLoc.latitude}, ${currentLoc.longitude}) från FMI...")
+                        val forecasts = fmiService.getForecast(currentLoc.latitude , currentLoc.longitude)
+
+                        forecasts.onSuccess { forecastList ->
+                            println("Väderprognos (FMI):")
+                            forecastList.take(8).forEach { forecast ->
+                                val zoneId = ZoneId.systemDefault()
+                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                val zonedDateTime = forecast.time.atZone(zoneId)
+
+                                println("${zonedDateTime.format(formatter)} | Temp: ${forecast.temperature} c | Moln: ${forecast.totalCloudCover} % | Fukt: ${forecast.humidity} % | Vind: ${forecast.windSpeed} m/s | Nederbörd: ${forecast.precipitation1h} mm")
+                            }
+                        }.onFailure { error ->
+                            println("Kunde inte hämta väderprognos från FMI: ${error.message}")
+                        }
+                    } ?: println("❌ Ingen plats vald!")
+                }
+                "4" -> {
                     if (currentSettings.savedLocations.isEmpty()) {
                         println("⚠️ Du har inga sparade platser. Välj alternativ 3 för att lägga till en.")
                     } else {
@@ -90,7 +131,7 @@ fun main() {
                         }
                     }
                 }
-                "3" -> {
+                "5" -> {
                     println("\n--- Lägg till ny plats ---")
                     print("Ange plats (till exempel Sergels torg i stockholm) ")
                     val somePlace = readlnOrNull()?.trim() ?: ""
@@ -120,5 +161,7 @@ fun main() {
         }
     }
     smhiService.close()
+    metNorwayService.close()
     geoLocationService.close()
+    fmiService.close()
 }
