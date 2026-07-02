@@ -22,7 +22,7 @@ data class MetForecast(
     val time: Instant,
     val windSpeed: Double? = null,
 )
-class MetNorwayService(private val userAgent: String) {
+class MetNorwayService(private val httpClient: HttpClient, private val userAgent: String) {
     @Serializable
     data class MetNorwayResponse(val properties: MetProperties)
 
@@ -57,13 +57,6 @@ class MetNorwayService(private val userAgent: String) {
     @Serializable
     data class MetPeriodDetails(val precipitation_amount: Double? = null)
 
-
-    private val httpClient = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-    }
-
     suspend fun getForecast(latitude: Double, longitude: Double): Result<List<MetForecast>> = runCatching {
         val rawResponse = getRawForecast(latitude, longitude).getOrThrow()
         val now = ZonedDateTime.now()
@@ -93,9 +86,5 @@ class MetNorwayService(private val userAgent: String) {
         httpClient.get(url) {
             header(HttpHeaders.UserAgent, userAgent)
         }.body()
-    }
-
-    fun close() {
-        httpClient.close()
     }
 }

@@ -8,10 +8,6 @@ import kotlinx.serialization.Serializable
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.Locale
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
 import java.time.Instant
 
 data class WeatherForecastBySmhi(
@@ -24,16 +20,7 @@ data class WeatherForecastBySmhi(
     val visibilityKm: Double
 )
 
-class SmhiService(private val userAgent: String) {
-
-    private val httpClient = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-            })
-        }
-    }
-
+class SmhiService(private val httpClient: HttpClient, private val userAgent: String) {
     private fun Double?.validSmhiValue(fallback: Double = 0.0): Double {
         return if (this == null || this == 9999.0) fallback else this
     }
@@ -84,9 +71,5 @@ class SmhiService(private val userAgent: String) {
                     precipitationMm = data.precipitation_amount_mean.validSmhiValue()
                 )
             }
-    }
-
-    fun close() {
-        httpClient.close()
     }
 }

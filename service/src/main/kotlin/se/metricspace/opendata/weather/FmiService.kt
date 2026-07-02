@@ -19,12 +19,7 @@ data class FmiForecast(
     val time: Instant
 )
 
-class FmiService(private val userAgent: String) {
-
-    // Ktor-klienten behöver inte ContentNegotiation/JSON längre för denna tjänst!
-    private val httpClient = HttpClient(CIO)
-
-    // En liten intern hjälpklass för att hålla regex-fynden
+class FmiService(private val httpClient: HttpClient, private val userAgent: String) {
     private data class FmiDataPoint(val time: String, val param: String, val value: String)
 
     suspend fun getForecast(latitude: Double, longitude: Double): Result<List<FmiForecast>> = runCatching {
@@ -89,9 +84,5 @@ class FmiService(private val userAgent: String) {
         httpClient.get(url) {
             header(HttpHeaders.UserAgent, userAgent)
         }.body() // Hämtar det som String istället för en JSON-klass!
-    }
-
-    fun close() {
-        httpClient.close()
     }
 }

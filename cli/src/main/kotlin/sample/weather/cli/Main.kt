@@ -7,9 +7,20 @@ import se.metricspace.opendata.weather.MetNorwayService
 import se.metricspace.opendata.weather.SmhiService
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 
 fun main() {
     println("⛅ Välkommen till WeatherCLI ⛅")
+    val httpClient = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
+    }
+
     val settingsRepo: SettingsRepository = JsonFileSettingsRepository("weather_config.json")
     var currentSettings = settingsRepo.loadSettings()
     while (currentSettings.userAgent.isNullOrBlank()) {
@@ -23,10 +34,10 @@ fun main() {
             println("User-Agent kan inte vara tom. Försök igen.")
         }
     }
-    val fmiService = FmiService(currentSettings.userAgent)
-    val geoLocationService = GeoLocationService(userAgent = currentSettings.userAgent, countryCodes = listOf("se", "no", "dk", "fi"))
-    val metNorwayService = MetNorwayService(currentSettings.userAgent)
-    val smhiService = SmhiService(currentSettings.userAgent)
+    val fmiService = FmiService(httpClient, currentSettings.userAgent)
+    val geoLocationService = GeoLocationService(httpClient, userAgent = "metricspace.location/1.1.0", listOf("se", "no", "dk", "fi"))
+    val metNorwayService = MetNorwayService(httpClient, currentSettings.userAgent)
+    val smhiService = SmhiService(httpClient, currentSettings.userAgent)
 
     runBlocking {
         while(null == currentSettings.currentLocation) {
@@ -160,8 +171,5 @@ fun main() {
             }
         }
     }
-    smhiService.close()
-    metNorwayService.close()
-    geoLocationService.close()
-    fmiService.close()
+    httpClient.close()
 }
