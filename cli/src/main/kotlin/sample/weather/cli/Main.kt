@@ -24,7 +24,7 @@ fun main() {
         }
     }
     val fmiService = FmiService(currentSettings.userAgent)
-    val geoLocationService = GeoLocationService(userAgent = currentSettings.userAgent)
+    val geoLocationService = GeoLocationService(userAgent = currentSettings.userAgent, countryCodes = listOf("se", "no", "dk", "fi"))
     val metNorwayService = MetNorwayService(currentSettings.userAgent)
     val smhiService = SmhiService(currentSettings.userAgent)
 
